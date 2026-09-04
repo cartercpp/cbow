@@ -38,6 +38,8 @@ namespace ansi
 
 constexpr std::string_view delimiters = " \t\n.,!?;:'\"()[]{}<>+-=*/\\|&%^~`_";
 constexpr std::size_t barWidth = 16;
+constexpr std::size_t contextWindow = 4;
+constexpr std::size_t sampleWordCount = contextWindow * 2 + 1;
 
 std::string Lower(std::string word)
 {
@@ -48,7 +50,7 @@ std::string Lower(std::string word)
     return word;
 }
 
-bool IsGoodWindow(const std::array<std::string, 5>& words)
+bool IsGoodWindow(const std::array<std::string, sampleWordCount>& words)
 {
     // Skip mostly-nonsemantic ad-libs so the samples read better on screen.
     static const std::set<std::string> adlibs{
@@ -74,16 +76,16 @@ bool IsGoodWindow(const std::array<std::string, 5>& words)
     }
 
     // A tiny center word makes for a less interesting TikTok prediction.
-    if (words[2].size() < 3)
+    if (words[contextWindow].size() < 3)
         return false;
 
     // Avoid samples that are almost entirely the same repeated word.
     return distinct.size() >= 4;
 }
 
-std::vector<std::array<std::string, 5>> BuildCandidateWindows(const std::string& text)
+std::vector<std::array<std::string, sampleWordCount>> BuildCandidateWindows(const std::string& text)
 {
-    std::vector<std::array<std::string, 5>> candidates;
+    std::vector<std::array<std::string, sampleWordCount>> candidates;
 
     std::size_t lineStart = 0;
     while (lineStart <= text.size())
@@ -100,11 +102,11 @@ std::vector<std::array<std::string, 5>> BuildCandidateWindows(const std::string&
         {
             const auto words = Split(line, delimiters);
 
-            for (std::size_t i = 0; i + 5 <= words.size(); ++i)
+            for (std::size_t i = 0; i + sampleWordCount <= words.size(); ++i)
             {
-                std::array<std::string, 5> window{
-                    words[i], words[i + 1], words[i + 2], words[i + 3], words[i + 4]
-                };
+                std::array<std::string, sampleWordCount> window;
+                for (std::size_t j = 0; j < sampleWordCount; ++j)
+                    window[j] = words[i + j];
 
                 if (IsGoodWindow(window))
                     candidates.push_back(std::move(window));
@@ -158,7 +160,7 @@ int main()
         idToWord.push_back(word);
     }
 
-    constexpr std::size_t windowSize = 2;
+    constexpr std::size_t windowSize = contextWindow;
     constexpr std::size_t topK = 5;
 
     if (embeddingMatrix.rows() != uniqueWords.size() ||
@@ -171,7 +173,7 @@ int main()
     const auto candidates = BuildCandidateWindows(text);
     if (candidates.empty())
     {
-        std::cerr << "No suitable 5-word samples found.\n";
+        std::cerr << "No suitable 9-word samples found.\n";
         return 1;
     }
 
@@ -239,11 +241,18 @@ int main()
         std::cout << ansi::dim << "╰──────────────────────────────────────────╯\n\n" << ansi::reset;
 
         std::cout << ansi::gray << "CONTEXT\n" << ansi::reset;
-        std::cout << "  " << words[0] << ' '
-                  << words[1] << ' '
-                  << ansi::yellow << ansi::bold << "[ MASK ]" << ansi::reset << ' '
-                  << words[3] << ' '
-                  << words[4] << "\n\n";
+        std::cout << "  ";
+        for (std::size_t i = 0; i < words.size(); ++i)
+        {
+            if (i == windowSize)
+                std::cout << ansi::yellow << ansi::bold << "[ MASK ]" << ansi::reset;
+            else
+                std::cout << words[i];
+
+            if (i + 1 < words.size())
+                std::cout << ' ';
+        }
+        std::cout << "\n\n";
 
         std::cout << ansi::gray << "TOP 5\n" << ansi::reset;
         for (std::size_t i = 0; i < std::min(topK, ranked.size()); ++i)
