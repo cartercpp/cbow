@@ -1,52 +1,119 @@
-# CBOW
+# CBOW from Scratch in C++
 
-A Continuous Bag of Words (CBOW) model implemented from scratch in C++.
+A from-scratch implementation of **Continuous Bag of Words (CBOW)** in modern C++.
 
-The model learns word embeddings from text and predicts a missing word using the words surrounding it. The neural network, training loop, matrix operations, softmax, and gradient calculations are implemented without an ML framework.
+The model learns word embeddings by predicting a target word from the words surrounding it. It uses a **context window of 4**, meaning each prediction is based on the **4 words before and 4 words after** the target word.
+
+No machine learning libraries are used.
+
+## How It Works
+
+For each training example, the model takes a sequence like:
+
+```text
+word word word word [TARGET] word word word word
+```
+
+The eight surrounding words are used as context.
+
+Each context word is mapped to a **50-dimensional embedding**. The embeddings are averaged together to produce a single context representation:
+
+```text
+8 context words
+      ↓
+word embeddings
+      ↓
+average embeddings
+      ↓
+linear output layer
+      ↓
+softmax
+      ↓
+predicted target word
+```
+
+The model is trained using:
+
+* 50-dimensional word embeddings
+* a context window of 4
+* softmax output probabilities
+* cross-entropy loss
+* backpropagation
+* gradient descent
+
+The implementation includes the forward pass, loss calculation, gradient computation, parameter updates, and embedding generation directly in C++.
+
+## Context Window
+
+The context window is:
+
+```cpp
+constexpr std::size_t windowSize = 4;
+```
+
+For a target word at position `i`, the model uses:
+
+```text
+i - 4
+i - 3
+i - 2
+i - 1
+[TARGET]
+i + 1
+i + 2
+i + 3
+i + 4
+```
+
+This gives the model **8 context words per training example**.
+
+The context embeddings are averaged before being passed through the output weight matrix.
+
+## Training
+
+The `training/` directory contains the CBOW training implementation.
+
+Training consists of:
+
+1. Tokenizing the input text
+2. Building the vocabulary
+3. Assigning each word an ID
+4. Randomly initializing the embedding and output matrices
+5. Creating 9-word training samples
+6. Averaging the eight context embeddings
+7. Computing vocabulary logits
+8. Applying softmax
+9. Calculating cross-entropy loss
+10. Backpropagating the error
+11. Updating the weights and word embeddings
+
+The trained matrices are then saved for use by the demo.
 
 ## Demo
 
-The demo randomly selects a 5-word sequence and masks the center word:
+The `demo/` directory contains a terminal visualization of the trained model.
+
+It randomly selects samples from the corpus, hides the center word, and asks the model to predict it from the eight surrounding words.
+
+Example:
 
 ```text
 CONTEXT
-  not a [ MASK ] Minion yeah
+
+  word word word word [ MASK ] word word word word
 
 TOP 5
-  1  rich       ━━━━━━━━━━━━━━━━  97.6%
-  2  you        ────────────────   1.8%
-  3  Minion     ────────────────   0.2%
-  4  like       ────────────────   0.1%
-  5  You        ────────────────   0.1%
+
+  1  prediction1  ━━━━━━━━━━━━━───  72.4%
+  2  prediction2  ━━━─────────────  14.1%
+  3  prediction3  ━───────────────   6.3%
+  4  prediction4  ────────────────   4.5%
+  5  prediction5  ────────────────   2.7%
 ```
 
-The highest-ranked prediction is displayed in green when correct and red when incorrect.
+The demo displays the model's five most likely predictions and their softmax probabilities.
 
-## How it works
-
-For a sequence
-
-```text
-w1  w2  [target]  w3  w4
-```
-
-CBOW:
-
-1. Looks up the embedding for each context word.
-2. Averages the four context embeddings.
-3. Multiplies the resulting vector by an output weight matrix.
-4. Applies softmax to produce a probability distribution over the vocabulary.
-5. Uses cross-entropy loss during training.
-6. Backpropagates the error into both the output weights and word embeddings.
-
-The model uses:
-
-- 50-dimensional word embeddings
-- 2 context words on each side
-- 100 training epochs
-- Learning rate of `0.01`
-
-## Project structure
+## Project Structure
 
 ```text
 cbow/
@@ -70,34 +137,30 @@ cbow/
     └── yeat.txt
 ```
 
-`training/` trains the model and writes the learned matrices to disk.
-
-`demo/` loads the trained parameters and continuously visualizes predictions in the terminal.
-
-## Building
-
-A compiler with modern C++ support is required.
-
-### Training
-
-```bash
-cd training
-g++ -std=c++23 -O2 main.cpp split.cpp -o train
-./train
-```
-
-### Demo
-
-```bash
-cd demo
-g++ -std=c++23 -O2 main.cpp split.cpp weights.cpp -o demo
-./demo
-```
-
-> The source currently contains absolute paths to the training text/output files. Change these paths to match your local filesystem before running it.
-
 ## Implementation
 
-The project includes custom `matrix` and `math_vector` types used for the underlying linear algebra rather than relying on an external machine-learning library.
+The project implements the required linear algebra without an external ML framework.
 
-The training process implements the CBOW forward pass and backpropagation directly in C++.
+`matrix.h` and `math_vector.h` provide operations used during training, including:
+
+* vector addition and subtraction
+* scalar multiplication
+* dot products
+* matrix multiplication
+* matrix-vector multiplication
+* outer products
+* matrix transposition
+
+The CBOW training algorithm itself is implemented directly in `training/main.cpp`.
+
+## Requirements
+
+A modern C++ compiler with support for the C++ features used by the project is required.
+
+The project does **not** depend on TensorFlow, PyTorch, Eigen, or another machine learning library.
+
+## Why?
+
+This project is meant to demonstrate how a basic neural language model works underneath high-level machine learning frameworks.
+
+Rather than calling a training API, the implementation explicitly performs the embedding lookup, forward pass, softmax, loss calculation, backpropagation, and weight updates.
