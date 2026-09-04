@@ -32,7 +32,7 @@ int main()
     }
 
     constexpr std::size_t embeddingSize = 50,
-                          windowSize = 2;
+                          windowSize = 4;
 
     matrix<double> embeddingMatrix(vocabularySize, embeddingSize, 0),
                    weightMatrix(embeddingSize, vocabularySize, 0);
@@ -47,7 +47,7 @@ int main()
             weightMatrix[i2][i] = dist(rd);
         }
 
-    for (std::size_t epoch = 0; epoch < 100; ++epoch)
+    for (std::size_t epoch = 0; epoch < 200; ++epoch)
     {
         double averageLoss = 0;
         std::size_t examples = 0;
